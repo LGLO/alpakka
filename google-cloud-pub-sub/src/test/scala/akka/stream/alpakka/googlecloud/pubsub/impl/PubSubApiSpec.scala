@@ -230,6 +230,27 @@ class PubSubApiSpec extends FlatSpec with BeforeAndAfterAll with ScalaFutures wi
     result.futureValue shouldBe (())
   }
 
+  it should "return exception with the meaningful error message in case of not successful acknowledge response" in {
+    val ackRequest = """{"ackIds":["ack1"]}"""
+    mock.register(
+      WireMock
+        .post(
+          urlEqualTo(
+            s"/v1/projects/${config.projectId}/subscriptions/sub1:acknowledge"
+          )
+        )
+        .withRequestBody(WireMock.equalToJson(ackRequest))
+        .withHeader("Authorization", WireMock.equalTo("Bearer " + accessToken))
+        .willReturn(aResponse().withStatus(500))
+    )
+
+    val acknowledgeRequest = AcknowledgeRequest("ack1")
+
+    val result = TestHttpApi.acknowledge(config.projectId, "sub1", Some(accessToken), acknowledgeRequest)
+
+    result.failed.futureValue.getMessage should include("500")
+  }
+
   it should "return exception with the meaningful error message in case of not successful publish response" in {
     val publishMessage =
       PublishMessage(
